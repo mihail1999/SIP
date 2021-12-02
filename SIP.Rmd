@@ -1,0 +1,395 @@
+---
+title: "SIP"
+author: "Mihail Naskovski"
+date: "7/5/2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = TRUE,
+	warning = TRUE
+)
+
+#Notes
+#change the current year withoout 'e'
+
+library(tidyverse)
+library(readr)
+
+Remittances <- read_csv("RemittancesNew.csv") %>% 
+  rename("Country" = "Migrant remittance inflows (US$ million)") %>%
+  pivot_longer(3:42,names_to = "Year",values_to = "Remittance_million")
+
+#View(Remittances)
+
+(Population_1981 <- read_csv("Population.csv")%>%
+  rename("Country" = "Country Name", "ISO" = "Country Code") %>%
+  pivot_longer(3:42,names_to = "Year",values_to = "Population") %>%
+  mutate(Population_million = Population/1000000) %>%
+  select(-Population))
+
+(Variables_Merge_1 <- left_join(x = Remittances, y = Population_1981, by = c("ISO", "Year")) %>%
+  select(-Country.y)%>%
+  mutate(Remittance_per_capita = Remittance_million/Population_million)%>%
+  mutate(Remittance_per_capita = round(Remittance_per_capita, digits = 2)) %>%
+  rename("Country" = "Country.x"))
+
+
+#View(Variables_Merge_1)
+
+
+```
+
+
+```{r}
+
+
+(Trade_Ratio <- read_csv("TradeRatio.csv")%>%
+  rename("Yearoff" = "1980") %>%
+  select(-Yearoff) %>%
+  pivot_longer(3:42,names_to = "Year",values_to = "Trade_GDP_Ratio_percent") %>%
+  mutate(Trade_GDP_Ratio_percent = parse_number(Trade_GDP_Ratio_percent)))
+
+#View(Trade_Ratio)
+
+(GDP_Growth <- read_csv("GDPGrowth.csv") %>%
+  pivot_longer(5:44,names_to = "Year",values_to = "GDP_Growth_percent") %>%
+  mutate(GDP_Growth_percent = parse_number(GDP_Growth_percent)))
+
+#View(GDP_Growth)
+
+(Variables_Merge_2 <- left_join(x = Variables_Merge_1, y = Trade_Ratio, by = c("ISO", "Year"))%>%
+  select(-Country.y)%>%
+  rename("Country" = "Country.x"))
+
+#View(Variables_Merge_2)
+
+(Variables_Merge_3 <- left_join(x = Variables_Merge_2, y = GDP_Growth, by = c("ISO", "Year"))%>%
+  select(-Country.y, -8, -9)%>%
+  rename("Country" = "Country.x") %>%
+  select(ISO, Country, Year, GDP_Growth_percent, Remittance_per_capita, Trade_GDP_Ratio_percent, Remittance_million, Population_million)%>%
+  mutate(Year = parse_integer(Year)))
+  
+
+#View(Variables_Merge_3)
+
+
+```
+
+
+
+```{r}
+library(readr)
+Investment_Rate <- read_csv("InvestmentRate.csv") %>%
+  pivot_longer(3:42,names_to = "Year", values_to = "Investment_Rate_percent")%>%
+  mutate(Year = parse_integer(Year))
+
+#View(Investment_Rate)
+
+
+library(readr)
+Savings_Rate <- read_csv("SavingsRate.csv") %>%
+  pivot_longer(3:42,names_to = "Year", values_to = "Savings_Rate_percent")%>%
+  mutate(Year = parse_integer(Year))
+
+#View(Savings_Rate)
+
+
+(Variables_Merge_4 <- left_join(x = Variables_Merge_3, y = Investment_Rate, by = c("ISO", "Year"))%>%
+  select(-9)%>%
+  rename("Country" = "Country.x") %>%
+  select(ISO, Country, Year, GDP_Growth_percent, Remittance_per_capita, Trade_GDP_Ratio_percent, Investment_Rate_percent, Remittance_million, Population_million))
+  
+
+#View(Variables_Merge_4)
+
+
+(Variables_Merge_5 <- left_join(x = Variables_Merge_4, y = Savings_Rate, by = c("ISO", "Year"))%>%
+  rename("Country" = "Country.x") %>%
+  select(ISO, Country, Year, GDP_Growth_percent, Remittance_per_capita, Trade_GDP_Ratio_percent, Investment_Rate_percent, Savings_Rate_percent, Remittance_million, Population_million))
+  
+
+#View(Variables_Merge_5)
+
+```
+
+
+```{r}
+
+library(readr)
+FDIndex <- read_csv("FD Index Database (Excel).csv")
+
+
+#View(FDIndex)
+
+
+
+(Variables_Merge_6 <- left_join(x = Variables_Merge_5, y = FDIndex, by = c("ISO", "Year"))%>%
+  rename("Country" = "Country.x") %>%
+  select(ISO, Country, Region, Econ_Level, Year, GDP_Growth_percent, Remittance_per_capita, Trade_GDP_Ratio_percent, Investment_Rate_percent, Savings_Rate_percent, Financial_Development, Remittance_million, Population_million))
+  
+
+#View(Variables_Merge_6)
+
+
+
+
+
+
+
+```
+
+
+
+```{r}
+
+library(readr)
+ECON_Freedom <- read_csv("ECON_Freedom.csv")%>%
+  rename("Country" = "Countries")
+#View(ECON_Freedom)
+
+
+(Variables_Merge_7 <- left_join(x = Variables_Merge_6, y = ECON_Freedom, by = c("ISO", "Year"))%>%
+  rename("Country" = "Country.x") %>%
+  select(ISO, Country, Region, Econ_Level, Year, GDP_Growth_percent, Remittance_per_capita, Trade_GDP_Ratio_percent, Investment_Rate_percent, Savings_Rate_percent, Financial_Development, Econ_Freedom_Index, Remittance_million, Population_million))
+  
+
+#View(Variables_Merge_7)
+
+
+```
+```{r}
+
+library(readr)
+Administration <- read_csv("Administration.csv")%>%
+mutate(Country = ifelse(Country == "Democratic Republic of the Congo", "Congo, Dem. Rep.", Country))%>%
+mutate(Country = ifelse(Country == "Republic of Congo", "Congo, Rep.", Country))%>%
+mutate(Country = ifelse(Country == "Cape Verde", "Cabo Verde", Country))%>%
+mutate(Country = ifelse(Country == "Czechia", "Czech Republic", Country))%>%
+mutate(Country = ifelse(Country == "Egypt", "Egypt, Arab Rep.", Country))%>%
+mutate(Country = ifelse(Country == "Gambia", "Gambia, The", Country))%>%
+mutate(Country = ifelse(Country == "Iran", "Iran, Islamic Rep.", Country))%>%
+mutate(Country = ifelse(Country == "Kyrgyzstan", "Kyrgyz Republic", Country))%>%
+mutate(Country = ifelse(Country == "Laos", "Lao PDR", Country))%>%
+mutate(Country = ifelse(Country == "Russia", "Russian Federation", Country))%>%
+mutate(Country = ifelse(Country == "Slovakia", "Slovak Republic", Country))%>%
+mutate(Country = ifelse(Country == "Sudan*", "Sudan", Country))%>%
+mutate(Country = ifelse(Country == "Viet Nam", "Vietnam", Country))
+  
+#rename("Democratic Republic of the Congo" = "Congo, Dem. Rep.", "Republic of Congo" = "Congo, Rep.", "Cape Verde" = "Cabo Verde", "Czechia" = "Czech Republic", "Egypt" = "Egypt, Arab Rep.", "Gambia" = "Gambia, The", "Iran" = "Iran, Islamic Rep.", "Kyrgyzstan" = "Kyrgyz Republic", "Laos" = "Lao PDR", "Russian Federation" = "Russia", "Slovak Republic" = "Slovakia", "Sudan*" = "Sudan", "Vietnam" = "Viet Nam")
+
+
+#View(Administration)
+
+
+#Countries with different names
+#Democratic Republic of the Congo = Congo, Dem. Rep.
+#Republic of Congo = Congo, Rep.
+#Cape Verde = Cabo Verde
+#Czechia = Czech Republic
+#Egypt = Egypt, Arab Rep.
+#Gambia = Gambia, The
+#Iran = Iran, Islamic Rep.
+#Kyrgyzstan = Kyrgyz Republic
+#Laos = Lao PDR
+#Russian Federation = Russia
+#Slovak Republic = Slovakia
+#Sudan* = Sudan
+#Vietnam = Viet Nam
+
+
+
+
+
+#Missing countries
+#Antigua and Barbuda
+#Aruba
+#Comoros
+#Belize
+#Bhutan
+#Djibouti
+#Dominica
+#Grenada
+#Guyana
+#Hong Kong SAR
+#Kiribati
+#Macao SAR
+#Maldives
+#Marshall Islands
+#Micronesia, Fed. Sts.
+#Palau
+#Samoa
+#Sao Tome and Principe
+#Seychelles
+#St. Kitts and Nevis
+#St. Lucia
+#St. Vincent and the Grenadines
+#Suriname
+#Tonga
+#Tuvalu
+#Vanuatu
+
+
+#What_was_left <- anti_join(x = Variables_Merge_7, y = Administration, by = c("Country", "Year"))
+#View(What_was_left)
+
+
+(Variables_Merge_8 <- left_join(x = Variables_Merge_7, y = Administration, by = c("Country", "Year"))%>%
+  select(ISO, Country, Region, Subregion, Econ_Level, Year, GDP_Growth_percent, Remittance_per_capita, Trade_GDP_Ratio_percent, Investment_Rate_percent, Savings_Rate_percent, Financial_Development, Econ_Freedom_Index, Administration, Remittance_million, Population_million))
+  
+
+#View(Variables_Merge_8)
+
+
+#Add FDI, Foreign Aid, Migrant Labor Stock
+
+
+write.csv(Variables_Merge_8,"C:/Users/Mihail Naskovski/Desktop/SIP Literature/SIP/SIP R two/2090007\\Remittances.csv", row.names = FALSE)
+
+
+```
+
+```{r}
+
+library(readr)
+MigrantStock <- read_csv("MigrantStock.csv")%>%
+  mutate(Country = ifelse(Country == "Egypt", "Egypt, Arab Rep.", Country))%>%
+  mutate(Country = ifelse(Country == "Kyrgyzstan", "Kyrgyz Republic", Country))%>%
+  mutate(Country = ifelse(Country == "Russia", "Russian Federation", Country))%>%
+  mutate(Country = ifelse(Country == "Micronesia (Fed. States of)", "Micronesia, Fed. Sts.", Country))%>%
+  mutate(Country = ifelse(Country == "Slovakia", "Slovak Republic", Country))%>%
+    mutate(Country = ifelse(Country == "Saint Kitts and Nevis", "St. Kitts and Nevis", Country))%>%
+    mutate(Country = ifelse(Country == "Saint Lucia", "St. Lucia", Country))%>%
+  mutate(Country = ifelse(Country == "Saint Vincent and the Grenadines", "St. Vincent and the Grenadines", Country))%>%
+  mutate(Country = ifelse(Country == "Sudan", "Sudan*", Country))%>%
+  pivot_longer(2:8,names_to = "Year", values_to = "Migrant_Stock")%>%
+  mutate(Year = parse_integer(Year))
+
+
+#View(MigrantStock)
+
+
+(Variables_Merge_9 <- left_join(x = Variables_Merge_8, y = MigrantStock, by = c("Country", "Year"))%>%
+  select(ISO, Country, Region, Subregion, Econ_Level, Year, GDP_Growth_percent, Remittance_per_capita, Trade_GDP_Ratio_percent, Investment_Rate_percent, Savings_Rate_percent, Financial_Development, Econ_Freedom_Index, Administration, Migrant_Stock, Remittance_million, Population_million))
+
+#View(Variables_Merge_9)
+
+#Just to check
+#What_was_left2 <- anti_join(x = Variables_Merge_8, y = MigrantStock, by = c("Country", "Year"))%>%
+  #filter(Year == 2020)
+#View(What_was_left2)
+
+
+library(readr)
+FDIFinal <- read_csv("C:/Users/Mihail Naskovski/Desktop/SIP Literature/SIP/SIP R two/FDIFinal.csv")%>%
+  pivot_longer(3:42,names_to = "Year", values_to = "FDI")%>%
+  mutate(Year = parse_integer(Year))
+
+#View(FDIFinal)
+
+library(readr)
+GDPFINALMIL <- read_csv("C:/Users/Mihail Naskovski/Desktop/SIP Literature/SIP/SIP R two/GDPFINALMIL.csv")%>%
+  pivot_longer(3:42,names_to = "Year", values_to = "GDP_Mil")%>%
+  mutate(Year = parse_integer(Year))
+#View(GDPFINALMIL)
+
+(Variables_Merge_10 <- left_join(x = Variables_Merge_9, y = FDIFinal, by = c("ISO", "Year"))%>%
+  select(ISO, Country.x, Region, Subregion, Econ_Level, Year, GDP_Growth_percent, Remittance_per_capita, Trade_GDP_Ratio_percent, Investment_Rate_percent, Savings_Rate_percent, FDI, Financial_Development, Econ_Freedom_Index, Administration, Migrant_Stock, Remittance_million, Population_million))
+
+#View(Variables_Merge_10)
+
+(Variables_Merge_11 <- left_join(x = Variables_Merge_10, y = GDPFINALMIL, by = c("ISO", "Year"))%>%
+  filter(!is.na(GDP_Growth_percent))%>%
+  mutate(Rem_Ratio_percent = Remittance_million*100/GDP_Mil, Rem_Ratio_percent = round(Rem_Ratio_percent, digits = 2), FDI_Ratio_percent = FDI*(-100)/GDP_Mil, FDI_Ratio_percent = round(FDI_Ratio_percent, digits = 2)) %>%
+  select(ISO, Country.x, Region, Subregion, Econ_Level, Year, GDP_Growth_percent, Rem_Ratio_percent, Trade_GDP_Ratio_percent, Investment_Rate_percent, Savings_Rate_percent, FDI_Ratio_percent, Financial_Development, Econ_Freedom_Index, Administration, Migrant_Stock, Remittance_million, Remittance_per_capita, GDP_Mil, FDI, Population_million)%>%
+fill(Region)%>%
+fill(Econ_Level)%>%
+mutate(Subregion = ifelse(is.na(Subregion) & Country.x == "Belize", "Central America", Subregion)))
+
+
+
+(Variables_Merge_11 %>%                   
+  group_by(Subregion) %>%          
+  summarise(Unique_Elements = n_distinct(Subregion)))
+
+
+View(Variables_Merge_11)
+
+write.csv(Variables_Merge_8,"C:/Users/Mihail Naskovski/Desktop/SIP Literature/SIP/SIP R two/2090007\\Remittances.csv", row.names = FALSE)
+
+
+
+
+
+
+```
+
+
+
+
+
+```{r}
+#The Regions Divided
+
+Americas <- filter(Variables_Merge_11, Subregion %in% c("Caribbean", "South America", "Central America"))
+
+(Americas %>%                   
+  group_by(ISO) %>%          
+  summarise(Unique_Elements = n_distinct(ISO)))
+
+S_SE_Asia <- filter(Variables_Merge_11, Subregion %in% c("South Asia", "South-East Asia"))
+
+(S_SE_Asia %>%                   
+  group_by(ISO) %>%          
+  summarise(Unique_Elements = n_distinct(ISO)))
+
+C_E_Europe <- filter(Variables_Merge_11, Subregion %in% c("East-Central Europe"))
+
+(C_E_Europe %>%                   
+  group_by(ISO) %>%          
+  summarise(Unique_Elements = n_distinct(ISO)))
+
+Africa <- filter(Variables_Merge_11, Subregion %in% c("Central Africa", "East Africa", "North Africa", "Southern Africa", "West Africa"))
+
+(Africa %>%                   
+  group_by(ISO) %>%          
+  summarise(Unique_Elements = n_distinct(ISO)))
+
+left_to_categorize <- filter(Variables_Merge_11, is.na(Region) | is.na(Subregion))
+
+
+#View(left_to_categorize)
+
+#View(Americas)
+#View(S_SE_Asia)
+#View(C_E_Europe)
+#View(Africa)
+
+#Go over regional division and categorize countries, example
+#Bhutan
+#Tonga
+
+
+#2020 does not have type of economy for any country, so filter with development but also 2020
+
+write.csv(Variables_Merge_11,"C:/Users/Mihail Naskovski/Desktop/SIP Literature/SIP/SIP R two/2090007\\Remittances2.csv", row.names = FALSE)
+write.csv(Americas,"C:/Users/Mihail Naskovski/Desktop/SIP Literature/SIP/SIP R two/2090007\\Americas.csv", row.names = FALSE)
+write.csv(S_SE_Asia,"C:/Users/Mihail Naskovski/Desktop/SIP Literature/SIP/SIP R two/2090007\\S_SE_Asia.csv", row.names = FALSE)
+write.csv(Africa,"C:/Users/Mihail Naskovski/Desktop/SIP Literature/SIP/SIP R two/2090007\\Africa.csv", row.names = FALSE)
+write.csv(C_E_Europe,"C:/Users/Mihail Naskovski/Desktop/SIP Literature/SIP/SIP R two/2090007\\C_E_Europe.csv", row.names = FALSE)
+
+
+
+
+
+
+
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
